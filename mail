@@ -12,7 +12,7 @@ FLAG_SEND=0											#If set to 0,the mail will be sent while attachment is ove
 ATTACHMENT_MAX_SIZE=10485760									#The max size of attachment is 10M=1024*1024*10
 [ "x$USER" != "xroot" ] && MAIL_CONTENT_PATH=/home/$USER/ || MAIL_CONTENT_PATH=/$USER/		#The directory where $ORIGIN_MAIL_CONTENT_FILE locate in
 ORIGIN_MAIL_CONTENT_FILE=.mail_content.tmp							#The file to save the mail content.
-WARN_RECEIVER=yourmailaddress								#The person who will receive the alarm mail
+WARN_RECEIVER=youremailaddress									#The person who will receive the alarm mail
 ORIGIN_MAIL_COMMAND=/bin/mailx.bak								#The original mail file in /bin
 IP_ADDR=`/sbin/ifconfig|egrep "inet addr:.*Bcast:"|awk '{print $2}'|awk -F ":" '{print $2}'`	#IP
 
