@@ -1,0 +1,64 @@
+#!/bin/bash
+
+#author:Gnome
+#date:20170426
+#description:This script will backup and replace the original mail file in /bin and limit the size of attachment.While the attachment is oversize,there will be a alarm mail to the specified recevier.
+#location:/bin/
+#document:
+
+. ~/.bash_profile
+
+FLAG_SEND=0											#If set to 0,the mail will be sent while attachment is oversize,else not
+ATTACHMENT_MAX_SIZE=10485760									#The max size of attachment is 10M=1024*1024*10
+[ "x$USER" != "xroot" ] && MAIL_CONTENT_PATH=/home/$USER/ || MAIL_CONTENT_PATH=/$USER/		#The directory where $ORIGIN_MAIL_CONTENT_FILE locate in
+ORIGIN_MAIL_CONTENT_FILE=.mail_content.tmp							#The file to save the mail content.
+WARN_RECEIVER=yourmailaddress								#The person who will receive the alarm mail
+ORIGIN_MAIL_COMMAND=/bin/mailx.bak								#The original mail file in /bin
+IP_ADDR=`/sbin/ifconfig|egrep "inet addr:.*Bcast:"|awk '{print $2}'|awk -F ":" '{print $2}'`	#IP
+
+attachment_file=	#The name of attachment
+attachment_size=	#The size of attachment(bytes)	
+attachments_file=""	#The name(s) of attachment(s)
+attachments_size=""	#The total size of attachment(s) 
+attachments_sum=	#$attachments_size + 0 for expr calculate
+origin_receiver=	#The original mail receiver
+origin_receivers=""	#All of $origin_receiver
+
+
+
+if [[ `head -1 /bin/mail` != '#!/bin/bash' ]] ; then
+    echo "You need to backup the origin /bin/mail as $ORIGIN_MAIL_COMMAND and put this script to /bin/ before you run it."
+    exit 1
+fi
+
+#receive the mail content
+cat > $ORIGIN_MAIL_CONTENT_FILE 2>&1
+
+#record the size of every attachment
+for attachment_file in `awk '{for(i=1;i<=NF;i++){if($i=="-a")print $(i+1)}}' <<<$@`
+do
+    [ -f $attachment_file ] && attachment_size=`ls -l $attachment_file|awk '{print $5}'` || continue
+    attachments_file="$attachments_file,$attachment_file"
+    attachments_size="$attachments_size + $attachment_size"
+done
+#get the original receiver
+for origin_receiver in `awk '{for(i=1;i<=NF;i++){if(match($i,/.*@.*\.com/))print $i}}' <<<$@`
+do
+    origin_receivers="$origin_receivers,$origin_receiver"
+done
+
+#get the total size of attachment(s)
+attachments_sum=`expr ${attachments_size#*\+} + 0 `
+#if attachment is oversize,then send the alarm mail
+if [[ $attachments_sum -ge $ATTACHMENT_MAX_SIZE ]] ; then 
+    echo -e "Mail Attachment Oversize(`expr $ATTACHMENT_MAX_SIZE / 1048576`M),Please check.
+Mail Directory:$PWD
+Mail Attachment(s):${attachments_file#*\,}
+Mail Total Size:`expr $attachments_sum / 1048576`M
+Mail Receiver:${origin_receivers#*\,}
+From $USER@$IP_ADDR at `date`"|$ORIGIN_MAIL_COMMAND -s "Mail Attachment Oversize" $WARN_RECEIVER 
+    #send the original mail if $FLAG_SEND = 0
+    [[ "$FLAG_SEND" != "0" ]] && exit 
+fi
+
+cat $ORIGIN_MAIL_CONTENT_FILE|$ORIGIN_MAIL_COMMAND "${@}"
